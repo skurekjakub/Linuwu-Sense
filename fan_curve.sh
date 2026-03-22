@@ -218,11 +218,13 @@ main() {
         fi
 
         local cpu_speed gpu_speed
-        cpu_speed=$(interpolate "$cpu_temp" "${CPU_CURVE[@]}")
-        gpu_speed=$(interpolate "$gpu_temp" "${GPU_CURVE[@]}")
+        # Use the higher of CPU/GPU temp for both fans so they spin equally
+        local max_temp=$(( cpu_temp > gpu_temp ? cpu_temp : gpu_temp ))
+        cpu_speed=$(interpolate "$max_temp" "${CPU_CURVE[@]}")
+        gpu_speed=$cpu_speed
 
-        cpu_speed=$(apply_hysteresis "$cpu_temp" "$last_cpu_temp" "$cpu_speed" "$last_cpu_speed")
-        gpu_speed=$(apply_hysteresis "$gpu_temp" "$last_gpu_temp" "$gpu_speed" "$last_gpu_speed")
+        cpu_speed=$(apply_hysteresis "$max_temp" "$last_cpu_temp" "$cpu_speed" "$last_cpu_speed")
+        gpu_speed=$(apply_hysteresis "$max_temp" "$last_gpu_temp" "$gpu_speed" "$last_gpu_speed")
 
         last_cpu_temp=$cpu_temp
         last_gpu_temp=$gpu_temp
