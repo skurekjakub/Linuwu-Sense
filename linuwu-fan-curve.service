@@ -1,0 +1,14 @@
+[Unit]
+Description=Linuwu-Sense Fan Curve Daemon
+After=multi-user.target
+ConditionPathIsDirectory=/sys/module/linuwu_sense
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/linuwu-fan-curve
+ExecStop=/bin/bash -c 'echo 0,0 > /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/predator_sense/fan_speed 2>/dev/null || echo 0,0 > /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/nitro_sense/fan_speed 2>/dev/null || true'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

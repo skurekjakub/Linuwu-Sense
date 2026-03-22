@@ -6,6 +6,7 @@ PWD   := $(shell pwd)
 
 MDIR  := /lib/modules/$(KVER)/kernel/drivers/platform/x86
 MODNAME := linuwu_sense
+DKMS_VER := 1.0
 REAL_USER := $(shell echo $${SUDO_USER:-$$(whoami)})
 
 all:
@@ -38,6 +39,9 @@ clean:
 uninstall:
 	@sudo rm -f /etc/modules-load.d/$(MODNAME).conf
 	@sudo rm -f /etc/modprobe.d/blacklist-acer_wmi.conf
+	@sudo rm -f /etc/modprobe.d/blacklist-facer.conf
+	@sudo dkms remove $(MODNAME)/$(DKMS_VER) --all 2>/dev/null || true
+	@sudo rm -rf /usr/src/$(MODNAME)-$(DKMS_VER)
 	@sudo systemctl stop linuwu_sense.service
 	@sudo systemctl disable linuwu_sense.service
 	@sudo rm -f /etc/systemd/system/linuwu_sense.service
@@ -52,16 +56,21 @@ uninstall:
 		echo "Group linuwu_sense does not exist."; \
 	fi
 	@sudo rm -f /etc/tmpfiles.d/$(MODNAME).conf
-	@sudo rm -f $(MDIR)/$(MODNAME).ko
 	@sudo depmod -a
 	@echo "Uninstalled $(MODNAME) and cleaned up related configuration."
 
 install: all
 	@sudo rmmod acer_wmi 2>/dev/null || true
+	@sudo rmmod facer 2>/dev/null || true
 	@echo "blacklist acer_wmi" | sudo tee /etc/modprobe.d/blacklist-acer_wmi.conf > /dev/null
-	sudo install -d $(MDIR)
-	sudo install -m 644 src/$(MODNAME).ko $(MDIR)
-	sudo depmod -a
+	@echo "blacklist facer" | sudo tee /etc/modprobe.d/blacklist-facer.conf > /dev/null
+	@sudo dkms remove $(MODNAME)/$(DKMS_VER) --all 2>/dev/null || true
+	@sudo rm -rf /usr/src/$(MODNAME)-$(DKMS_VER)
+	sudo mkdir -p /usr/src/$(MODNAME)-$(DKMS_VER)
+	sudo cp -r src/ Makefile dkms.conf /usr/src/$(MODNAME)-$(DKMS_VER)/
+	sudo dkms add $(MODNAME)/$(DKMS_VER)
+	sudo dkms build $(MODNAME)/$(DKMS_VER)
+	sudo dkms install $(MODNAME)/$(DKMS_VER)
 	@echo "$(MODNAME)" | sudo tee /etc/modules-load.d/$(MODNAME).conf > /dev/null
 	sudo modprobe $(MODNAME)
 	@sleep 2

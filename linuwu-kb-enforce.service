@@ -1,0 +1,13 @@
+[Unit]
+Description=Linuwu-Sense Keyboard Backlight Enforcer
+After=multi-user.target
+ConditionPathIsDirectory=/sys/module/linuwu_sense
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/linuwu-kb-enforce
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

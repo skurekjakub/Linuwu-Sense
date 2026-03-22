@@ -543,6 +543,11 @@ enum acer_wmi_predator_v4_oc {
     .nitro_v4 = 1,
  };
 
+ static struct quirk_entry quirk_acer_nitro_an16s_61 = {
+    .nitro_v4 = 1,
+    .four_zone_kb = 1,
+ };
+
  /* The Aspire One has a dummy ACPI-WMI interface - disable it */
  static const struct dmi_system_id acer_blacklist[] __initconst = {
      {
@@ -589,6 +594,15 @@ enum acer_wmi_predator_v4_oc {
   * that those machines are supported by acer-wmi driver.
   */
  static const struct dmi_system_id acer_quirks[] __initconst = {
+     {
+         .callback = dmi_matched,
+         .ident = "Acer Nitro AN16S-61",
+         .matches = {
+             DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+             DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN16S-61"),
+         },
+         .driver_data = &quirk_acer_nitro_an16s_61,
+     },
      {
          .callback = dmi_matched,
          .ident = "Acer Nitro AN16-43",
