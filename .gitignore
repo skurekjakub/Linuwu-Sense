@@ -1,0 +1,15 @@
+# Kernel build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+*.symvers
+*.order
+*.cmd
+
+# Hidden build command files
+.*.cmd
+
+# DKMS build tree (managed separately under /usr/src/)
+/var/lib/dkms/
