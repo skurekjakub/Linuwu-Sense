@@ -43,8 +43,7 @@ HYSTERESIS=3
 
 last_cpu_speed=-1
 last_gpu_speed=-1
-last_cpu_temp=0
-last_gpu_temp=0
+last_max_temp=0
 
 log() {
     echo "[$(date '+%H:%M:%S')] $*"
@@ -175,6 +174,8 @@ apply_hysteresis() {
 set_fan_speed() {
     local cpu_pct=$1
     local gpu_pct=$2
+    local cur_cpu_temp=$3
+    local cur_gpu_temp=$4
 
     if (( cpu_pct == last_cpu_speed && gpu_pct == last_gpu_speed )); then
         return 0
@@ -185,7 +186,7 @@ set_fan_speed() {
         return 1
     }
 
-    log "Fan → CPU:${cpu_pct}% GPU:${gpu_pct}% (temps: CPU:${last_cpu_temp}°C GPU:${last_gpu_temp}°C)"
+    log "Fan → CPU:${cpu_pct}% GPU:${gpu_pct}% (temps: CPU:${cur_cpu_temp}°C GPU:${cur_gpu_temp}°C)"
     last_cpu_speed=$cpu_pct
     last_gpu_speed=$gpu_pct
 }
@@ -223,13 +224,12 @@ main() {
         cpu_speed=$(interpolate "$max_temp" "${CPU_CURVE[@]}")
         gpu_speed=$cpu_speed
 
-        cpu_speed=$(apply_hysteresis "$max_temp" "$last_cpu_temp" "$cpu_speed" "$last_cpu_speed")
-        gpu_speed=$(apply_hysteresis "$max_temp" "$last_gpu_temp" "$gpu_speed" "$last_gpu_speed")
+        cpu_speed=$(apply_hysteresis "$max_temp" "$last_max_temp" "$cpu_speed" "$last_cpu_speed")
+        gpu_speed=$(apply_hysteresis "$max_temp" "$last_max_temp" "$gpu_speed" "$last_gpu_speed")
 
-        last_cpu_temp=$cpu_temp
-        last_gpu_temp=$gpu_temp
+        last_max_temp=$max_temp
 
-        set_fan_speed "$cpu_speed" "$gpu_speed"
+        set_fan_speed "$cpu_speed" "$gpu_speed" "$cpu_temp" "$gpu_temp"
 
         sleep "$POLL_INTERVAL"
     done
