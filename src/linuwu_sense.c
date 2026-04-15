@@ -336,6 +336,9 @@ enum acer_wmi_predator_v4_oc {
  static bool predator_v4;
  static bool nitro_v4;
  static u64 supported_sensors;
+
+ /* Serializes multi-step WMI fan/behavior sequences against concurrent callers */
+ static DEFINE_MUTEX(acer_wmi_mutex);
  
  module_param(mailled, int, 0444);
  module_param(brightness, int, 0444);
@@ -3212,95 +3215,106 @@ enum acer_wmi_predator_v4_oc {
  static u64 fan_val_calc(int percentage, int fan_index) {
      return (((percentage * 25600) / 100) & 0xFF00) + fan_index;
  }
- static acpi_status acer_set_fan_speed(int t_cpu_fan_speed, int t_gpu_fan_speed){
-     
+ static acpi_status __acer_set_fan_speed(int t_cpu_fan_speed, int t_gpu_fan_speed)
+ {
      acpi_status status;
- 
+
      if (t_cpu_fan_speed == 100 && t_gpu_fan_speed == 100) {
-         pr_info("MAX FAN MODE!\n");
+         pr_debug("MAX FAN MODE!\n");
          status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID, 0x820009, NULL);
-         if(ACPI_FAILURE(status)){
-             pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+         if (ACPI_FAILURE(status)) {
+             pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
              return AE_ERROR;
          }
      } else if (t_cpu_fan_speed == 0 && t_gpu_fan_speed == 0) {
-         pr_info("AUTO FAN MODE!\n");
+         pr_debug("AUTO FAN MODE!\n");
          status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID, 0x410009, NULL);
-         if(ACPI_FAILURE(status)){
-             pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+         if (ACPI_FAILURE(status)) {
+             pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
              return AE_ERROR;
          }
      } else if (t_cpu_fan_speed <= 100 && t_gpu_fan_speed <= 100) {
          if (t_cpu_fan_speed == 0) {
-             pr_info("CUSTOM FAN MODE (GPU)\n");
+             pr_debug("CUSTOM FAN MODE (GPU)\n");
              status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID, 0x10001, NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
              status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID, 0xC00008, NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
-             status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_SPEED_METHODID, fan_val_calc(t_gpu_fan_speed,4), NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_SPEED_METHODID, fan_val_calc(t_gpu_fan_speed, 4), NULL);
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
          } else if (t_gpu_fan_speed == 0) {
-             pr_info("CUSTOM FAN MODE (CPU)\n");
+             pr_debug("CUSTOM FAN MODE (CPU)\n");
              status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID, 0x400008, NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
              status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID, 0x30001, NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
-             status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_SPEED_METHODID, fan_val_calc(t_cpu_fan_speed,1), NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_SPEED_METHODID, fan_val_calc(t_cpu_fan_speed, 1), NULL);
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
          } else {
-             pr_info("CUSTOM FAN MODE (MIXED)!\n");
-             //set gaming behvaiour mode to custom
+             pr_debug("CUSTOM FAN MODE (MIXED)\n");
+             /* set gaming behaviour mode to custom */
              status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID, 0xC30009, NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
-             //set cpu fan speed
-             status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_SPEED_METHODID, fan_val_calc(t_cpu_fan_speed,1), NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             /* set cpu fan speed */
+             status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_SPEED_METHODID, fan_val_calc(t_cpu_fan_speed, 1), NULL);
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
-             //set gpu fan speed
-             status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_SPEED_METHODID, fan_val_calc(t_gpu_fan_speed,4), NULL);
-             if(ACPI_FAILURE(status)){
-                 pr_err("Error setting fan speed status: %s\n",acpi_format_exception(status));
+             /* set gpu fan speed */
+             status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_SPEED_METHODID, fan_val_calc(t_gpu_fan_speed, 4), NULL);
+             if (ACPI_FAILURE(status)) {
+                 pr_err("Error setting fan speed status: %s\n", acpi_format_exception(status));
                  return AE_ERROR;
              }
          }
      } else {
          return AE_ERROR;
      }
- 
+
      cpu_fan_speed = t_cpu_fan_speed;
      gpu_fan_speed = t_gpu_fan_speed;
-     pr_info("Fan speeds updated: CPU=%d, GPU=%d\n", cpu_fan_speed, gpu_fan_speed);
- 
-     return AE_OK;	
+     pr_debug("Fan speeds updated: CPU=%d, GPU=%d\n", cpu_fan_speed, gpu_fan_speed);
+
+     return AE_OK;
+ }
+
+ static acpi_status acer_set_fan_speed(int t_cpu_fan_speed, int t_gpu_fan_speed)
+ {
+     acpi_status ret;
+
+     mutex_lock(&acer_wmi_mutex);
+     ret = __acer_set_fan_speed(t_cpu_fan_speed, t_gpu_fan_speed);
+     mutex_unlock(&acer_wmi_mutex);
+
+     return ret;
  }
  
  static ssize_t predator_fan_speed_show(struct device *dev,
                                             struct device_attribute *attr,
                                             char *buf) {
-   return sprintf(buf, "%d,%d\n", cpu_fan_speed, gpu_fan_speed);                           
+     return sysfs_emit(buf, "%d,%d\n", cpu_fan_speed, gpu_fan_speed);
  }
  
  
@@ -3313,7 +3327,7 @@ enum acer_wmi_predator_v4_oc {
      char *token;
      char* input_ptr = input;
      size_t len = min(count, sizeof(input) - 1);
-     strncpy(input, buf, len);
+     strscpy(input, buf, len + 1);
  
      if(input[len-1] == '\n'){
          input[len-1] = '\0';

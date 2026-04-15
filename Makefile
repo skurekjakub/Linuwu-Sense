@@ -33,6 +33,16 @@ all:
 	fi
 	# --- end auto sign block ---
 
+reinstall:
+	sudo cp -r src/ Makefile dkms.conf /usr/src/$(MODNAME)-$(DKMS_VER)/
+	sudo dkms build $(MODNAME)/$(DKMS_VER) --force
+	sudo dkms install $(MODNAME)/$(DKMS_VER) --force
+	sudo systemctl stop linuwu-fan-curve linuwu-kb-enforce 2>/dev/null || true
+	sudo modprobe -r $(MODNAME) 2>/dev/null || true
+	sudo modprobe $(MODNAME)
+	sudo systemctl start linuwu-fan-curve linuwu-kb-enforce 2>/dev/null || true
+	@echo "$(MODNAME) reinstalled and reloaded."
+
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 

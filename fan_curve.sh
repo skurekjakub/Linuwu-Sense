@@ -20,20 +20,20 @@ FAN_SPEED_PATH=""
 CPU_CURVE=(
     "40:0"    # 40°C and below → auto (0 = auto mode)
     "55:30"   # 55°C → 30%
-    "65:45"   # 65°C → 45%
-    "75:60"   # 75°C → 60%
-    "85:80"   # 85°C → 80%
+    "65:45"   # 65°C → 55%
+    "75:60"   # 75°C → 70%
+    "85:80"   # 85°C → 100%
     "90:100"  # 90°C+ → 100%
 )
 
 # GPU curve
 GPU_CURVE=(
-    "40:0"    # 40°C and below → auto
-    "55:30"
-    "65:45"
-    "75:60"
-    "85:80"
-    "90:100"
+    "40:0"    # 40°C and below → auto (0 = auto mode)
+    "55:30"   # 55°C → 30%
+    "65:45"   # 65°C → 55%
+    "75:60"   # 75°C → 70%
+    "85:80"   # 85°C → 100%
+    "90:100"  # 90°C+ → 100%
 )
 
 # Hysteresis in °C - prevents rapid fan speed changes
